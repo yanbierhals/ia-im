@@ -1,11 +1,14 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
+  <meta charset="UTF-8">
   <title>Classificador de Objetos</title>
   <style>
     body { font-family: sans-serif; text-align: center; margin-top: 50px; }
     video, canvas { width: 300px; border-radius: 10px; }
-    .label { font-size: 20px; margin-top: 20px; }
+    .label { font-size: 18px; margin-top: 20px; }
+    .maior { color: green; font-weight: bold; }
+    .menor { color: orange; }
   </style>
 </head>
 <body>
@@ -14,37 +17,39 @@
   <div><video id="webcam" autoplay muted playsinline></video></div>
   <div class="label" id="label-container"></div>
 
-  <!-- ✅ SCRIPT DEPOIS DO HTML + BIBLIOTECA CORRETA -->
+  <!-- TensorFlow.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
+  <!-- Teachable Machine -->
   <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
-  <script type="text/javascript">
+
+  <script>
     const URL = "./";
     let model, webcam, labelContainer, maxPredictions;
 
     async function init() {
-      // Verifica se tmImage existe
-      if (!window.tmImage) {
-        alert("Erro ao carregar Teachable Machine. Verifique sua conexão.");
-        return;
-      }
+      try {
+        const modelURL = URL + "model.json";
+        const metadataURL = URL + "metadata.json";
 
-      const modelURL = URL + "model.json";
-      const metadataURL = URL + "metadata.json";
+        model = await tmImage.load(modelURL, metadataURL);
+        maxPredictions = model.getTotalClasses();
 
-      model = await tmImage.load(modelURL, metadataURL);
-      maxPredictions = model.getTotalClasses();
+        webcam = new tmImage.Webcam(300, 300, true);
+        await webcam.setup();
+        await webcam.play();
+        window.requestAnimationFrame(loop);
 
-      const flip = true;
-      webcam = new tmImage.Webcam(300, 300, flip); // largura, altura, espelhar imagem
-      await webcam.setup(); // pede permissão
-      await webcam.play();
-      window.requestAnimationFrame(loop);
+        document.getElementById("webcam").replaceWith(webcam.canvas);
 
-      // Substitui o vídeo pela tela do webcam da TM
-      document.getElementById("webcam").replaceWith(webcam.canvas);
-
-      labelContainer = document.getElementById("label-container");
-      for (let i = 0; i < maxPredictions; i++) {
-        labelContainer.appendChild(document.createElement("div"));
+        labelContainer = document.getElementById("label-container");
+        labelContainer.innerHTML = "";
+        for (let i = 0; i < maxPredictions; i++) {
+          const div = document.createElement("div");
+          labelContainer.appendChild(div);
+        }
+      } catch (err) {
+        alert("Erro ao carregar modelo ou iniciar webcam.");
+        console.error("Erro:", err);
       }
     }
 
@@ -56,10 +61,26 @@
 
     async function predict() {
       const prediction = await model.predict(webcam.canvas);
+
+      // Encontra o índice com maior e menor probabilidade
+      let maiorIdx = 0;
+      let menorIdx = 0;
+      for (let i = 1; i < prediction.length; i++) {
+        if (prediction[i].probability > prediction[maiorIdx].probability) maiorIdx = i;
+        if (prediction[i].probability < prediction[menorIdx].probability) menorIdx = i;
+      }
+
       for (let i = 0; i < maxPredictions; i++) {
-        const classPrediction =
-          prediction[i].className + ": " + (prediction[i].probability * 100).toFixed(2) + "%";
-        labelContainer.childNodes[i].innerHTML = classPrediction;
+        const prob = (prediction[i].probability * 100).toFixed(2);
+        const texto = `${prediction[i].className}: ${prob}%`;
+
+        const div = labelContainer.childNodes[i];
+        div.textContent = texto;
+
+        // Aplica classe CSS
+        div.className = "";
+        if (i === maiorIdx) div.classList.add("maior");
+        else if (i === menorIdx) div.classList.add("menor");
       }
     }
   </script>
