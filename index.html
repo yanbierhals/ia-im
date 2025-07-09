@@ -2,10 +2,9 @@
 <html>
 <head>
   <title>Classificador de Objetos</title>
-  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
   <style>
     body { font-family: sans-serif; text-align: center; margin-top: 50px; }
-    video { width: 300px; border-radius: 10px; }
+    video, canvas { width: 300px; border-radius: 10px; }
     .label { font-size: 20px; margin-top: 20px; }
   </style>
 </head>
@@ -15,11 +14,19 @@
   <div><video id="webcam" autoplay muted playsinline></video></div>
   <div class="label" id="label-container"></div>
 
+  <!-- ✅ SCRIPT DEPOIS DO HTML + BIBLIOTECA CORRETA -->
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
   <script type="text/javascript">
     const URL = "./";
     let model, webcam, labelContainer, maxPredictions;
 
     async function init() {
+      // Verifica se tmImage existe
+      if (!window.tmImage) {
+        alert("Erro ao carregar Teachable Machine. Verifique sua conexão.");
+        return;
+      }
+
       const modelURL = URL + "model.json";
       const metadataURL = URL + "metadata.json";
 
@@ -27,11 +34,12 @@
       maxPredictions = model.getTotalClasses();
 
       const flip = true;
-      webcam = new tmImage.Webcam(300, 300, flip);
-      await webcam.setup();
+      webcam = new tmImage.Webcam(300, 300, flip); // largura, altura, espelhar imagem
+      await webcam.setup(); // pede permissão
       await webcam.play();
       window.requestAnimationFrame(loop);
 
+      // Substitui o vídeo pela tela do webcam da TM
       document.getElementById("webcam").replaceWith(webcam.canvas);
 
       labelContainer = document.getElementById("label-container");
